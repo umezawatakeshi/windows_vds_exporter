@@ -101,6 +101,7 @@ int main()
 	if (bCgiMode)
 	{
 		printf("Content-Type: text/plain; charset=utf-8; version=0.0.4\n\n");
+		fflush(stdout);
 	}
 	_setmode(_fileno(stdout), _O_BINARY);
 
