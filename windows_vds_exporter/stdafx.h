@@ -5,6 +5,9 @@
 #include <io.h>
 #include <fcntl.h>
 
+#include <string>
+#include <map>
+
 #include <windows.h>
 #include <initguid.h>
 #include <comdef.h>
