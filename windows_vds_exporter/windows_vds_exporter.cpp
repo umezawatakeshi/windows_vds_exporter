@@ -90,7 +90,7 @@ int main()
 	IUnknownPtr pUnknown;
 	ULONG cFetched;
 
-	const char* pszMethod = getenv("HTTP_METHOD");
+	const char* pszMethod = getenv("REQUEST_METHOD");
 	bCgiMode = pszMethod != NULL;
 	if (bCgiMode && strcmp(pszMethod, "GET") != 0)
 	{
