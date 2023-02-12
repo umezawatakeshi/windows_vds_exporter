@@ -77,6 +77,20 @@ const Gauge* gauges[] = {
 	&volume_reparse_point_gauge,
 };
 
+namespace std
+{
+	template<> struct less<GUID>
+	{
+		bool operator()(const GUID& a, const GUID& b) const
+		{
+			return memcmp(&a, &b, sizeof(GUID)) < 0;
+		}
+	};
+}
+
+std::map<GUID, std::string> volume_name_map; // volume's ID -> name
+std::map<std::string, std::pair<VDS_REPARSE_POINT_PROP*, LONG> > reparse_points_map; // volume's name -> {reparse points, # of points}
+
 bool bCgiMode = false;
 
 void ProcessSoftwareProvider(IVdsProviderPtr& pVdsProvider, const VDS_PROVIDER_PROP& provider);
@@ -167,6 +181,30 @@ int main()
 		CoTaskMemFree(provider.pwszVersion);
 	}
 
+	// resolve reparse points
+	for (auto& [name, rpinfo] : reparse_points_map)
+	{
+		auto& [pReparsePointArray, lNumberOfResults] = rpinfo;
+		for (LONG i = 0; i < lNumberOfResults; ++i)
+		{
+			auto it = volume_name_map.find(pReparsePointArray[i].SourceVolumeId);
+			if (it != volume_name_map.end())
+			{
+				volume_reparse_point_gauge.values.insert({ {
+					{"name", name},
+					{"source_name", it->second},
+					{"path", WideCharToUtf8StdString(pReparsePointArray[i].pwszPath)},
+				}, 1 });
+			}
+			else
+			{
+				// XXX
+			}
+			CoTaskMemFree(pReparsePointArray[i].pwszPath);
+		}
+		CoTaskMemFree(pReparsePointArray);
+	}
+
 	for (auto& gauge : gauges)
 		gauge->Serialize(stdout);
 }
@@ -211,25 +249,25 @@ void ProcessSoftwareProvider(IVdsProviderPtr& pVdsProvider, const VDS_PROVIDER_P
 				fprintf(stderr, "IVdsVolume::GetProperties() failed: hr=%08X\n", hr);
 				exit(1);
 			}
-			std::string volume_id = GuidToStdString(&volume.id);
+			std::string name = WideCharToUtf8StdString(volume.pwszName);
+			volume_name_map.insert({ volume.id, name });
 			volume_info_gauge.values.insert({ {
-				{"volume_id", volume_id},
-				{"name", WideCharToUtf8StdString(volume.pwszName)},
+				{"name", name},
 				{"type", VdsVolumeTypeToString(volume.type)},
 			}, 1 });
 			volume_size_bytes_gauge.values.insert({ {
-				{"volume_id", volume_id},
+				{"name", name},
 			}, (double)volume.ullSize });
 			volume_status_gauge.values.insert({ {
-				{"volume_id", volume_id},
+				{"name", name},
 				{"status", VdsVolumeStatusToString(volume.status)},
 			}, 1 });
 			volume_transition_state_gauge.values.insert({ {
-				{"volume_id", volume_id},
+				{"name", name},
 				{"transition_state", VdsTransitionStateToString(volume.TransitionState)},
 			}, 1 });
 			volume_health_gauge.values.insert({ {
-				{"volume_id", volume_id},
+				{"name", name},
 				{"health", VdsHealthToString(volume.health)},
 			}, 1 });
 
@@ -245,8 +283,8 @@ void ProcessSoftwareProvider(IVdsProviderPtr& pVdsProvider, const VDS_PROVIDER_P
 			for (LONG i = 0; i < lNumberOfResults; ++i)
 			{
 				volume_access_path_gauge.values.insert({ {
-					{"volume_id", volume_id},
-					{"access_path", WideCharToUtf8StdString(pwszAccessPathArray[i])},
+				{"name", name},
+				{"access_path", WideCharToUtf8StdString(pwszAccessPathArray[i])},
 				}, 1 });
 				CoTaskMemFree(pwszAccessPathArray[i]);
 			}
@@ -257,16 +295,7 @@ void ProcessSoftwareProvider(IVdsProviderPtr& pVdsProvider, const VDS_PROVIDER_P
 				fprintf(stderr, "IVdsVolumeMF::QueryReparsePoints() failed: hr=%08X\n", hr);
 				exit(1);
 			}
-			for (LONG i = 0; i < lNumberOfResults; ++i)
-			{
-				volume_reparse_point_gauge.values.insert({ {
-					{"volume_id", volume_id},
-					{"source_volume_id", GuidToStdString(&pReparsePointArray[i].SourceVolumeId)},
-					{"path", WideCharToUtf8StdString(pReparsePointArray[i].pwszPath)},
-				}, 1 });
-				CoTaskMemFree(pReparsePointArray[i].pwszPath);
-			}
-			CoTaskMemFree(pReparsePointArray);
+			reparse_points_map.insert({ name, {pReparsePointArray, lNumberOfResults} });
 
 			CoTaskMemFree(volume.pwszName);
 		}
