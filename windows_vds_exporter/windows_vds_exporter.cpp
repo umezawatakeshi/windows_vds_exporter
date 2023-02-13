@@ -64,6 +64,7 @@ Gauge volume_size_bytes_gauge{ "windows_vds_volume_size_bytes", "Volume size in 
 Gauge volume_status_gauge{ "windows_vds_volume_status", "Volume status" };
 Gauge volume_transition_state_gauge{ "windows_vds_volume_transition_state", "Volume transition state" };
 Gauge volume_health_gauge{ "windows_vds_volume_health","Volume health" };
+Gauge volume_health_healthy_gauge{ "windows_vds_volume_health_healthy","Volume health" };
 Gauge volume_access_path_gauge{ "windows_vds_volume_access_path","Volume access path" };
 Gauge volume_reparse_point_gauge{ "windows_vds_volume_reparse_point","Volume reparse point" };
 
@@ -73,6 +74,7 @@ const Gauge* gauges[] = {
 	&volume_status_gauge,
 	&volume_transition_state_gauge,
 	&volume_health_gauge,
+	&volume_health_healthy_gauge,
 	&volume_access_path_gauge,
 	&volume_reparse_point_gauge,
 };
@@ -270,6 +272,9 @@ void ProcessSoftwareProvider(IVdsProviderPtr& pVdsProvider, const VDS_PROVIDER_P
 				{"name", name},
 				{"health", VdsHealthToString(volume.health)},
 			}, 1 });
+			volume_health_healthy_gauge.values.insert({ {
+				{"name", name},
+			}, volume.health == VDS_H_HEALTHY ? 1.0 : 0.0 });
 
 			LONG lNumberOfResults;
 			LPWSTR* pwszAccessPathArray;
