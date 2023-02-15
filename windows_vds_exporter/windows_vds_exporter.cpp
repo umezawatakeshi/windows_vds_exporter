@@ -1,6 +1,7 @@
 ﻿#include "stdafx.h"
 
 #include "EnumToString.h"
+#include "version.h"
 
 _COM_SMARTPTR_TYPEDEF(IVdsServiceLoader, IID_IVdsServiceLoader);
 _COM_SMARTPTR_TYPEDEF(IVdsService, IID_IVdsService);
@@ -122,9 +123,10 @@ int main()
 	_setmode(_fileno(stdout), _O_BINARY);
 
 	printf(
-		"# windows_vds_exporter, version 0.0.0\n"
+		"# windows_vds_exporter, version %s\n"
 		"# Copyright (c) 2023  UMEZAWA Takeshi\n"
-		"# Licensed under GNU General Public License version 2 or later.\n"
+		"# Licensed under GNU General Public License version 2 or later.\n",
+		VERSION_STR
 	);
 
 	hr = CoInitialize(NULL);
